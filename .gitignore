@@ -1,0 +1,55 @@
+# ---------------------
+# Python cache & builds
+# ---------------------
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+dist/
+build/
+
+# ---------------------
+# Virtual environments
+# ---------------------
+BioMed_env/
+venv/
+.venv/
+env/
+ENV/
+.conda/
+*.egg-info/
+
+# ---------------------
+# Environment & secrets
+# ---------------------
+.env
+*.env
+secrets.json
+config.json
+apikeys.json
+
+# ---------------------
+# Data & models (large files)
+# ---------------------
+*.npy
+*.npz
+*.pt
+*.pth
+*.h5
+*.ckpt
+*.model
+
+# ---------------------
+# Project-specific big files
+# ---------------------
+pubmed_clean.jsonl
+pubmed_embeddings.npy
+pubmed_metadata.json
+pubmed_clusters.json
+trend_data.csv
+
+# ---------------------
+# Streamlit & cache
+# ---------------------
+.streamlit/
+.cache/
