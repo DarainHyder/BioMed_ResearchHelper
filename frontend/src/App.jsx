@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
-import { Search, Database, Activity, GitNetwork, LineChart, BookOpen, Layers } from 'lucide-react';
+import { Search, Database, Activity, Share2, LineChart, BookOpen, Layers } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 const API_BASE_URL = 'https://sawabedarain-biomed-ai-backend.hf.space';
@@ -107,7 +107,7 @@ export default function App() {
           
           <div className="metric-card">
             <div className="metric-icon-wrapper">
-              <GitNetwork size={28} />
+              <Share2 size={28} />
             </div>
             <div>
               <div className="metric-value">14</div>
