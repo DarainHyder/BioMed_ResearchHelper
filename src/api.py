@@ -74,22 +74,32 @@ async def startup_event():
         search_engine = SemanticSearchEngine()
         if not search_engine.initialize():
             logger.error("Failed to initialize search engine")
+            # Without search engine, we can't do anything, so we must abort
+            initialized = False
             return
+    except Exception as e:
+        logger.error(f"Critical error during search engine initialization: {e}")
+        initialized = False
+        return
         
+    try:
         # Initialize summarization engine
         summarization_engine = SummarizationEngine()
         summarization_engine.initialize(search_engine)
+    except Exception as e:
+        logger.error(f"Failed to initialize summarization engine (Continuing without it): {e}")
+        summarization_engine = None
         
+    try:
         # Initialize topic modeling engine
         topic_engine = TopicModelingEngine()
         topic_engine.initialize_topic_modeling()
-        
-        initialized = True
-        logger.info("All engines initialized successfully")
-        
     except Exception as e:
-        logger.error(f"Error during initialization: {e}")
-        initialized = False
+        logger.error(f"Failed to initialize topic engine (Continuing without it): {e}")
+        topic_engine = None
+        
+    initialized = True
+    logger.info("Engines initialization phase complete")
 
 def check_initialization():
     """Check if engines are initialized"""

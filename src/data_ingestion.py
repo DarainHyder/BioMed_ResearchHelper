@@ -225,30 +225,43 @@ class PubMedIngester:
     def ingest_data(self, query: str = None, max_results: int = None, 
                    date_from: str = None, date_to: str = None) -> List[Dict]:
         """Main ingestion method"""
-        query = query or Config.RESEARCH_DOMAIN
-        max_results = max_results or Config.MAX_PAPERS
-        date_from = date_from or Config.DATE_FROM
-        date_to = date_to or Config.DATE_TO
         
         # Check if data already exists
         if Config.RAW_DATA_FILE.exists():
             logger.info(f"Loading existing data from {Config.RAW_DATA_FILE}")
             return self.load_papers(Config.RAW_DATA_FILE)
+            
+        date_from = date_from or Config.DATE_FROM
+        date_to = date_to or Config.DATE_TO
         
-        # Search for papers
-        pmids = self.search_papers(query, max_results, date_from, date_to)
+        all_papers = []
         
-        if not pmids:
+        if query and max_results:
+            # Traditional single query mode
+            pmids = self.search_papers(query, max_results, date_from, date_to)
+            if pmids:
+                all_papers = self.fetch_paper_details(pmids)
+        else:
+            # Multi-domain loop mode
+            domains = Config.RESEARCH_DOMAINS
+            max_per_domain = getattr(Config, 'PAPERS_PER_DOMAIN', 500)
+            
+            logger.info(f"Starting generic research ingestion. Categories: {len(domains)}")
+            for domain in domains:
+                logger.info(f"--- Fetching papers for domain: {domain} ---")
+                pmids = self.search_papers(domain, max_per_domain, date_from, date_to)
+                if pmids:
+                    papers = self.fetch_paper_details(pmids)
+                    all_papers.extend(papers)
+        
+        if not all_papers:
             logger.error("No papers found!")
             return []
         
-        # Fetch paper details
-        papers = self.fetch_paper_details(pmids)
-        
         # Save raw data
-        self.save_papers(papers, Config.RAW_DATA_FILE)
+        self.save_papers(all_papers, Config.RAW_DATA_FILE)
         
-        return papers
+        return all_papers
 
 if __name__ == "__main__":
     ingester = PubMedIngester()

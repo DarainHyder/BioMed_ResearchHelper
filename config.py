@@ -14,9 +14,19 @@ class Config:
         raise ValueError("NCBI_EMAIL is required in .env file")
     
     # Research configuration
-    RESEARCH_DOMAIN = os.getenv('RESEARCH_DOMAIN', 'covid immunotherapy')
-    MAX_PAPERS = int(os.getenv('MAX_PAPERS', '5000'))
-    DATE_FROM = os.getenv('DATE_FROM', '2020/01/01')
+    _domains_str = os.getenv('RESEARCH_DOMAINS', '')
+    if _domains_str:
+        RESEARCH_DOMAINS = [d.strip() for d in _domains_str.split(',') if d.strip()]
+    else:
+        RESEARCH_DOMAINS = [os.getenv('RESEARCH_DOMAIN', 'biomedical research')]
+        
+    PAPERS_PER_DOMAIN = int(os.getenv('PAPERS_PER_DOMAIN', '500'))
+    
+    # Legacy fallbacks for compatibility with older scripts
+    RESEARCH_DOMAIN = RESEARCH_DOMAINS[0] if RESEARCH_DOMAINS else ''
+    MAX_PAPERS = int(os.getenv('MAX_PAPERS', str(len(RESEARCH_DOMAINS) * PAPERS_PER_DOMAIN)))
+    
+    DATE_FROM = os.getenv('DATE_FROM', '2018/01/01')
     DATE_TO = os.getenv('DATE_TO', '2024/12/31')
     
     # Model configuration
