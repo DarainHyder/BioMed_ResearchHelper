@@ -11,15 +11,13 @@ const Atlas = lazy(() => import('./pages/Atlas'))
 const Topics = lazy(() => import('./pages/Topics'))
 const Trends = lazy(() => import('./pages/Trends'))
 
-const Fallback = () => <div className="min-h-screen bg-bone" />
-
 export default function App() {
   const { pathname } = useLocation()
 
   useEffect(() => {
     warmUp()
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return
-    const lenis = new Lenis({ lerp: 0.09, smoothWheel: true })
+    const lenis = new Lenis({ lerp: 0.1, smoothWheel: true })
     let raf
     const loop = (t) => { lenis.raf(t); raf = requestAnimationFrame(loop) }
     raf = requestAnimationFrame(loop)
@@ -34,7 +32,7 @@ export default function App() {
   return (
     <>
       <Nav />
-      <Suspense fallback={<Fallback />}>
+      <Suspense fallback={<div className="min-h-screen" />}>
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/search" element={<Search />} />
