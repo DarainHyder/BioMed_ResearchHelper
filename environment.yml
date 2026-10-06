@@ -1,0 +1,22 @@
+# Isolated environment for BioAtlas (pipeline + backend). PyTorch comes from the cu128 pip wheel,
+# which bundles its own CUDA runtime and does not modify the system driver or toolkit.
+name: biomed
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - pip
+  - pip:
+      - --extra-index-url https://download.pytorch.org/whl/cu128
+      - torch==2.11.0
+      - sentence-transformers==6.1.0
+      - datasets
+      - accelerate
+      - umap-learn
+      - scikit-learn
+      - onnx
+      - onnxscript
+      - requests
+      - huggingface_hub
+      - pytest
+      - -r backend/requirements.txt
