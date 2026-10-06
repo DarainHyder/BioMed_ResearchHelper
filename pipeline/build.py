@@ -287,6 +287,13 @@ def main():
                    'stats': {k: meta[k] for k in ('papers', 'topics', 'journals', 'years', 'authors', 'mesh_terms')},
                    'retrieval': {k: v for k, v in (meta['retrieval_eval'] or {}).items() if not k.startswith('_')}},
                   f, separators=(',', ':'))
+    # 11) titles in map order, for instant hover on the landing helix and the Atlas
+    rows = []
+    for p in papers:
+        t = p['title'].rstrip('.')
+        rows.append([t if len(t) <= 150 else t[:147].rstrip() + '...', p['year'], (p['journal'] or '')[:60]])
+    with open(os.path.join(FRONTEND_DATA, 'titles.json'), 'w') as f:
+        json.dump(rows, f, ensure_ascii=False, separators=(',', ':'))
     print(f'done in {time.time() - t0:.0f}s')
 
 
