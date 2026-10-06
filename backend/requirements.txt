@@ -1,0 +1,9 @@
+# API runtime for the Hugging Face Space. No torch / transformers: the encoder runs on onnxruntime.
+fastapi==0.142.2
+uvicorn[standard]==0.54.0
+numpy==2.4.6
+scipy==1.17.1
+onnxruntime==1.30.0
+tokenizers==0.23.2
+httpx==0.28.1
+pydantic==2.13.5
