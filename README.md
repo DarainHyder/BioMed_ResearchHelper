@@ -31,8 +31,11 @@ discovery and real publication trends over **14,693 PubMed studies from 24 field
 | **Topics** | Research fronts discovered without labels (UMAP + HDBSCAN), named with class TF-IDF, ranked by growth. |
 | **Trends** | True PubMed publication volumes per field, rising MeSH concepts, top journals. |
 
-The landing page opens with a scroll-driven "explode" animation built from the real data: every dot is a
-paper, packed into a sphere by field, bursting apart and settling into its true position on the map.
+The landing page is an interactive specimen: all 14,693 studies form a DNA double helix, ordered by field.
+Drag to turn it; the strands bend away from your cursor, and hovering any point shows the real study it
+stands for. Scrolling unwinds the helix, each study takes up its field's stain as it leaves the strand and
+streams to its place on the research map, which ends as an annotated figure plate. The design follows the
+subject: ivory paper, journal typography, and the hematoxylin and eosin colours of histology.
 
 ## Retrieval benchmark
 
