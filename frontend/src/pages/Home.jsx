@@ -1,199 +1,48 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowRight, ArrowUpRight, Search as SearchIcon } from 'lucide-react'
-import ExplodeHero from '../components/ExplodeHero'
-import { setDomainColors } from '../components/ui'
+import HelixHero from '../components/HelixHero'
+import { SectionHead, setDomainColors, usePaperDrawer } from '../components/ui'
 import { useReveal } from '../lib/hooks'
 import { fmt, loadMap } from '../lib/mapData'
 
-const MODEL_ROWS = [
-  ['bm25', 'BM25 keyword search', 'Lexical baseline'],
-  ['v1_all_mpnet_base_v2', 'all-mpnet-base-v2', 'The original v1 model (110M params)'],
-  ['bge_small_base', 'bge-small, off the shelf', '33M params'],
-  ['bge_small_finetuned', 'bge-small, fine-tuned here', 'Contrastive training on this corpus'],
-  ['hybrid_bm25_finetuned', 'Hybrid: BM25 + fine-tuned', 'Reciprocal rank fusion (production)'],
+const MODELS = [
+  ['bm25', 'BM25 keyword retrieval', 'n/a'],
+  ['v1_all_mpnet_base_v2', 'all-mpnet-base-v2 (the original v1 model)', '110M'],
+  ['bge_small_base', 'bge-small, off the shelf', '33M'],
+  ['bge_small_finetuned', 'bge-small, fine-tuned on this corpus', '33M'],
+  ['hybrid_bm25_finetuned', 'Hybrid: BM25 and fine-tuned, rank-fused', '33M'],
 ]
 
-const EXAMPLES = ['CAR-T cytokine release syndrome management', 'gut microbiome and depression',
-  'GLP-1 agonists cardiovascular outcomes', 'deep learning for diabetic retinopathy']
+const INSTRUMENTS = [
+  ['/search', 'Search', 'Find studies by meaning and by keyword at once, filtered by field and year, with the matching passage quoted.'],
+  ['/brief', 'Evidence briefs', 'Pose a clinical or scientific question. The most relevant sentences across the leading studies are assembled and cited.'],
+  ['/atlas', 'The Atlas', 'The full plate: every study in its place. Light up any question and see where the evidence lives.'],
+  ['/topics', 'Research fronts', 'Clusters that emerged on their own, named by their vocabulary and ranked by how quickly they grew.'],
+  ['/trends', 'Trends', 'Publication volume in each field from 2014 to 2025, counted directly from PubMed, with the concepts on the rise.'],
+]
 
-function Benchmark({ retrieval }) {
-  const ref = useReveal([retrieval])
-  if (!retrieval?.bge_small_finetuned) return null
-  const best = Math.max(...MODEL_ROWS.map(([k]) => retrieval[k]?.['recall@1'] || 0))
-  const v1 = retrieval.v1_all_mpnet_base_v2?.['recall@1']
-  const ours = retrieval.hybrid_bm25_finetuned?.['recall@1']
+function Abstract({ map, ev }) {
+  const f = ev?.hybrid_bm25_finetuned
+  const v1 = ev?.v1_all_mpnet_base_v2
   return (
-    <section ref={ref} className="container-x py-28 md:py-36">
-      <div className="grid gap-14 lg:grid-cols-[1fr_1.25fr] lg:gap-20">
-        <div className="reveal">
-          <p className="eyebrow">Benchmark · held-out papers</p>
-          <h2 className="h-display mt-4 text-4xl leading-[1.02] sm:text-5xl">
-            Trained on the corpus, <span className="serif-i">not just prompted.</span>
-          </h2>
-          <p className="mt-6 text-lg leading-8 text-ink-3">
-            We fine-tuned a compact biomedical embedding model on title, abstract and MeSH pairs, then measured how often each
-            system ranks the right paper first among all 14,693 abstracts, given only its title. None of the test papers were
-            seen in training.
-          </p>
-          {v1 && ours && (
-            <p className="mt-8 font-display text-6xl font-medium tracking-tightest text-signal">
-              +{Math.round((ours / v1 - 1) * 100)}%
-              <span className="ml-3 align-middle font-sans text-base font-normal tracking-normal text-ink-3">top-1 accuracy vs. the v1 model</span>
-            </p>
-          )}
+    <section className="border-y border-ink py-10">
+      <div className="grid gap-8 lg:grid-cols-[200px_1fr]">
+        <div>
+          <p className="font-sans text-[13px] font-semibold">Abstract</p>
+          <p className="meta mt-2 leading-6">BioAtlas, version 2<br />Data from NCBI PubMed</p>
         </div>
-        <div className="reveal surface p-2 sm:p-3" style={{ transitionDelay: '120ms' }}>
-          {MODEL_ROWS.map(([key, name, note]) => {
-            const r = retrieval[key]
-            if (!r) return null
-            const prod = key === 'hybrid_bm25_finetuned'
-            return (
-              <div key={key} className={`rounded-2xl px-5 py-4 ${prod ? 'bg-moss text-bone' : ''}`}>
-                <div className="flex items-baseline justify-between gap-4">
-                  <div>
-                    <p className={`font-medium ${prod ? '' : 'text-ink'}`}>{name}</p>
-                    <p className={`text-xs ${prod ? 'text-bone/50' : 'text-ink-4'}`}>{note}</p>
-                  </div>
-                  <div className="text-right font-mono text-sm">
-                    <span className={prod ? 'text-bone' : 'text-ink'}>{(r['recall@1'] * 100).toFixed(1)}%</span>
-                    <span className={`ml-3 text-xs ${prod ? 'text-bone/50' : 'text-ink-4'}`}>MRR {r['mrr@10'].toFixed(3)}</span>
-                  </div>
-                </div>
-                <div className={`mt-3 h-1.5 overflow-hidden rounded-full ${prod ? 'bg-white/10' : 'bg-ink/[0.06]'}`}>
-                  <div className={`h-full rounded-full transition-[width] duration-[1600ms] ease-out ${prod ? 'bg-signal' : 'bg-ink/70'}`}
-                    style={{ width: `${(r['recall@1'] / best) * 100}%` }} />
-                </div>
-              </div>
-            )
-          })}
-          <p className="px-5 pb-3 pt-2 text-xs text-ink-4">Recall@1: share of 1,514 held-out titles whose own paper is the very first result among all 14,693 studies. MRR@10 shown alongside.</p>
+        <div className="body max-w-3xl space-y-4 text-[18px]">
+          <p><b className="font-semibold text-ink">Background.</b> More than a million biomedical papers appear each year. Keyword search finds the
+            words, not the ideas, and says nothing about how a question relates to the rest of science.</p>
+          <p><b className="font-semibold text-ink">Methods.</b> We sampled {fmt(map?.stats.papers)} abstracts evenly across {map?.domains.length} fields and every year
+            from 2014, fine-tuned a 33M-parameter language model on title, abstract and MeSH pairs, and combined it with keyword
+            retrieval. Topics were found by density clustering of the learned representation.</p>
+          <p><b className="font-semibold text-ink">Results.</b> {f && v1 ? <>Given only a title, the system ranks the right study first in {(f['recall@1'] * 100).toFixed(1)}% of
+            1,514 held-out cases, against {(v1['recall@1'] * 100).toFixed(1)}% for the model used in version 1 (Table 1). </> : null}
+            {map?.stats.topics} research fronts emerged without labels. Queries run in about ten milliseconds on a small CPU.</p>
+          <p><b className="font-semibold text-ink">Conclusions.</b> A small model trained on the literature it serves can outperform a larger general one, and
+            makes the shape of a field visible as well as searchable.</p>
         </div>
-      </div>
-    </section>
-  )
-}
-
-function Capabilities() {
-  const ref = useReveal()
-  const cards = [
-    { to: '/search', k: '01', title: 'Hybrid search', body: 'Meaning and keywords, fused. Filter by field and year, see where results cluster.',
-      visual: (
-        <div className="space-y-2.5">
-          <div className="flex items-center gap-2 rounded-full border border-ink/10 bg-bone px-3 py-2 text-xs text-ink-3"><SearchIcon className="h-3.5 w-3.5" /> checkpoint inhibitor resistance</div>
-          {[92, 88, 84].map((s, i) => <div key={s} className="flex items-center gap-2"><div className="h-2 flex-1 rounded-full bg-ink/[0.07]"><div className="h-2 rounded-full bg-ink/70" style={{ width: `${s - i * 8}%` }} /></div><span className="font-mono text-[10px] text-ink-4">{s}%</span></div>)}
-        </div>) },
-    { to: '/brief', k: '02', title: 'Evidence briefs', body: 'Ask a question, get a cited synthesis with key quantitative findings and an evidence profile.',
-      visual: (
-        <p className="font-serif text-[15px] leading-7 text-ink-2">
-          Response rates improved with combination therapy <sup className="rounded bg-signal px-1 font-sans text-[9px] text-white">2</sup>, while
-          resistance was linked to antigen loss <sup className="rounded bg-ink px-1 font-sans text-[9px] text-white">4</sup>.
-        </p>) },
-    { to: '/topics', k: '03', title: 'Topic discovery', body: 'Research fronts found without labels, named by their own vocabulary, ranked by growth.',
-      visual: (
-        <div className="flex flex-wrap gap-1.5">{['organoid', 'tumor microenvironment', 'spatial transcriptomics', 'base editing', 'microbiota'].map((w, i) => <span key={w} className={`chip ${i === 1 ? 'chip-on' : ''}`}>{w}</span>)}</div>) },
-    { to: '/trends', k: '04', title: 'Real trends', body: 'True PubMed publication volumes per field since 2014, plus the concepts rising fastest.',
-      visual: (
-        <div className="flex h-16 items-end gap-1">{[18, 22, 25, 31, 36, 44, 52, 61, 66, 74, 83, 92].map((h, i) => <div key={i} className={`flex-1 rounded-sm ${i > 8 ? 'bg-signal' : 'bg-ink/15'}`} style={{ height: `${h}%` }} />)}</div>) },
-  ]
-  return (
-    <section ref={ref} className="container-x pb-28 md:pb-36">
-      <div className="reveal flex flex-col justify-between gap-6 md:flex-row md:items-end">
-        <h2 className="h-display max-w-2xl text-4xl leading-[1.02] sm:text-5xl">Four instruments, <span className="serif-i">one corpus.</span></h2>
-        <p className="max-w-sm text-ink-3">Every view reads from the same fine-tuned representation of the literature, so search, briefs, topics and trends always agree.</p>
-      </div>
-      <div className="mt-14 grid gap-4 md:grid-cols-2">
-        {cards.map((c, i) => (
-          <Link key={c.k} to={c.to} className="reveal surface surface-hover group flex min-h-[300px] flex-col justify-between p-8" style={{ transitionDelay: `${i * 90}ms` }}>
-            <div className="flex items-start justify-between">
-              <span className="font-mono text-xs text-ink-4">{c.k}</span>
-              <ArrowUpRight className="h-5 w-5 text-ink-4 transition group-hover:-translate-y-0.5 group-hover:translate-x-0.5 group-hover:text-signal" />
-            </div>
-            <div className="my-8 max-w-sm">{c.visual}</div>
-            <div>
-              <h3 className="font-display text-2xl font-medium tracking-tight">{c.title}</h3>
-              <p className="mt-2 max-w-md text-ink-3">{c.body}</p>
-            </div>
-          </Link>
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function Domains({ map }) {
-  if (!map) return null
-  const row = map.domains.map((d, i) => ({ d, c: map.colors[i] }))
-  const Track = ({ items, reverse }) => (
-    <div className="flex overflow-hidden">
-      <div className="flex shrink-0 animate-marquee gap-10 pr-10" style={{ animationDirection: reverse ? 'reverse' : 'normal' }}>
-        {[...items, ...items].map((x, i) => (
-          <span key={i} className="flex items-center gap-3 whitespace-nowrap font-serif text-3xl italic text-ink-2 sm:text-4xl">
-            <span className="h-3 w-3 rounded-full" style={{ background: x.c }} />{x.d}
-          </span>
-        ))}
-      </div>
-    </div>
-  )
-  return (
-    <section className="border-y border-ink/10 bg-bone-50 py-14">
-      <div className="space-y-8 [mask-image:linear-gradient(90deg,transparent,#000_10%,#000_90%,transparent)]">
-        <Track items={row.slice(0, 12)} />
-        <Track items={row.slice(12)} reverse />
-      </div>
-    </section>
-  )
-}
-
-function HowItWorks() {
-  const ref = useReveal()
-  const steps = [
-    ['Ingest', 'Year-stratified sampling of PubMed: 24 fields, 2014 to today, so trends are real rather than a recency artefact.'],
-    ['Adapt', 'A 33M-parameter encoder is fine-tuned with in-batch contrastive learning on title, abstract and MeSH pairs.'],
-    ['Index', 'Dense vectors plus a sparse BM25 index, fused at query time with reciprocal rank fusion.'],
-    ['Discover', 'UMAP and HDBSCAN find research fronts; class TF-IDF names them; growth is measured over time.'],
-    ['Serve', 'An int8 ONNX encoder answers queries in milliseconds on a small CPU, no GPU required.'],
-  ]
-  return (
-    <section ref={ref} className="relative overflow-hidden bg-moss py-28 text-bone grain md:py-36" data-nav-dark>
-      <div className="container-x relative">
-        <p className="reveal eyebrow text-bone/40">Under the hood</p>
-        <h2 className="reveal h-display mt-4 max-w-3xl text-4xl leading-[1.02] sm:text-5xl">
-          From raw abstracts to a <span className="serif-i text-signal-soft">searchable map</span> in five steps.
-        </h2>
-        <div className="mt-16 grid gap-px overflow-hidden rounded-[22px] border border-white/10 bg-white/10 md:grid-cols-5">
-          {steps.map(([t, b], i) => (
-            <div key={t} className="reveal bg-moss p-7" style={{ transitionDelay: `${i * 80}ms` }}>
-              <p className="font-mono text-xs text-signal-soft">0{i + 1}</p>
-              <p className="mt-10 font-display text-xl font-medium">{t}</p>
-              <p className="mt-3 text-sm leading-6 text-bone/55">{b}</p>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function SearchCTA() {
-  const ref = useReveal()
-  const navigate = useNavigate()
-  const [q, setQ] = useState('')
-  const go = (query) => query.trim() && navigate(`/search?q=${encodeURIComponent(query.trim())}`)
-  return (
-    <section ref={ref} className="container-x py-28 text-center md:py-36">
-      <h2 className="reveal h-display mx-auto max-w-3xl text-5xl leading-[0.98] sm:text-6xl">
-        What does the evidence <span className="serif-i">say?</span>
-      </h2>
-      <form className="reveal mx-auto mt-10 flex max-w-2xl items-center gap-2 rounded-full border border-ink/15 bg-bone-50 p-2 pl-6 shadow-[0_30px_60px_-40px_rgba(20,22,19,.5)]"
-        onSubmit={(e) => { e.preventDefault(); go(q) }}>
-        <SearchIcon className="h-5 w-5 text-ink-4" />
-        <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search 14,000+ studies by meaning"
-          className="flex-1 bg-transparent py-2 text-[15px] outline-none placeholder:text-ink-4" />
-        <button className="btn-ink">Search <ArrowRight className="h-4 w-4" /></button>
-      </form>
-      <div className="reveal mt-6 flex flex-wrap justify-center gap-2">
-        {EXAMPLES.map((e) => <button key={e} onClick={() => go(e)} className="chip hover:border-ink/30 hover:text-ink">{e}</button>)}
       </div>
     </section>
   )
@@ -201,37 +50,125 @@ function SearchCTA() {
 
 export default function Home() {
   const [map, setMap] = useState(null)
-  const introRef = useReveal([map])
-  useEffect(() => {
-    loadMap().then((m) => { setDomainColors(m.domains, m.colors); setMap(m) })
-  }, [])
+  const [openPaper, drawer] = usePaperDrawer()
+  const navigate = useNavigate()
+  const [q, setQ] = useState('')
+  const ref = useReveal([map])
+  useEffect(() => { loadMap().then((m) => { setDomainColors(m.domains, m.colors); setMap(m) }) }, [])
+
+  const ev = map?.retrieval
+  const best = useMemo(() => ev && Math.max(...MODELS.map(([k]) => ev[k]?.['recall@1'] || 0)), [ev])
+  const fieldCounts = useMemo(() => {
+    if (!map) return []
+    const c = new Array(map.domains.length).fill(0)
+    for (let i = 0; i < map.n; i++) c[map.d[i]]++
+    return map.domains.map((d, i) => [d, c[i], map.colors[i]])
+  }, [map])
 
   return (
     <main>
-      <ExplodeHero map={map} />
-      <section ref={introRef} className="container-x py-28 md:py-40">
-        <p className="reveal eyebrow">Why BioAtlas</p>
-        <p className="reveal mt-6 max-w-5xl font-display text-3xl font-medium leading-[1.18] tracking-tight text-ink sm:text-[44px]">
-          More than a million biomedical papers are published every year. BioAtlas reads them the way a researcher would:
-          <span className="serif-i text-ink-3"> by meaning, not keywords,</span> then shows you where a question sits in the wider landscape of science.
-        </p>
-        {map && (
-          <div className="reveal mt-16 grid grid-cols-2 gap-px overflow-hidden rounded-[22px] border border-ink/10 bg-ink/10 md:grid-cols-4">
-            {[[fmt(map.stats.papers), 'studies indexed'], [map.domains.length, 'fields of medicine'], [map.stats.topics, 'research fronts'],
-              [fmt(map.stats.journals), 'journals']].map(([v, l]) => (
-              <div key={l} className="bg-bone px-6 py-8">
-                <p className="h-display text-4xl sm:text-5xl">{v}</p>
-                <p className="mt-2 text-sm text-ink-3">{l}</p>
-              </div>
+      <HelixHero map={map} onOpen={openPaper} />
+
+      <div ref={ref} className="page">
+        <div className="reveal"><Abstract map={map} ev={ev} /></div>
+
+        <section className="reveal mt-20">
+          <SectionHead n={1}>Five instruments, one corpus</SectionHead>
+          <ol className="ruled">
+            {INSTRUMENTS.map(([to, name, text], i) => (
+              <li key={to}>
+                <Link to={to} className="group grid grid-cols-[2.5rem_1fr] gap-x-4 py-6 sm:grid-cols-[3rem_14rem_1fr_6rem]">
+                  <span className="num pt-1.5">{String(i + 1).padStart(2, '0')}</span>
+                  <span className="font-serif text-2xl text-ink group-hover:text-hema">{name}</span>
+                  <span className="body col-start-2 mt-1 sm:col-start-auto sm:mt-0">{text}</span>
+                  <span className="hidden pt-1.5 text-right font-sans text-sm text-ink-3 group-hover:text-hema sm:block">Open &rarr;</span>
+                </Link>
+              </li>
             ))}
-          </div>
+          </ol>
+        </section>
+
+        {ev?.hybrid_bm25_finetuned && (
+          <section className="reveal mt-20">
+            <SectionHead n={2} aside="Held-out evaluation">How well it finds the right study</SectionHead>
+            <div className="mt-6 overflow-x-auto">
+              <table className="w-full min-w-[640px] border-collapse font-sans text-[14px]">
+                <thead>
+                  <tr className="border-y border-ink text-left">
+                    <th className="py-2.5 pr-4 font-semibold">System</th>
+                    <th className="py-2.5 pr-4 text-right font-semibold">Parameters</th>
+                    <th className="py-2.5 pr-4 text-right font-semibold">Recall@1</th>
+                    <th className="py-2.5 pr-4 text-right font-semibold">Recall@10</th>
+                    <th className="py-2.5 text-right font-semibold">MRR@10</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {MODELS.map(([k, name, params]) => {
+                    const r = ev[k]
+                    if (!r) return null
+                    const top = r['recall@1'] === best
+                    return (
+                      <tr key={k} className="border-b border-rule">
+                        <td className="py-3 pr-4 font-serif text-[16px]">{name}</td>
+                        <td className="py-3 pr-4 text-right tabular-nums text-ink-3">{params}</td>
+                        <td className={`py-3 pr-4 text-right tabular-nums ${top ? 'font-semibold text-eosin' : ''}`}>
+                          <span className="mr-3 inline-block h-[3px] w-20 bg-paper-3 align-middle"><span className="block h-[3px] bg-ink" style={{ width: `${((r['recall@1'] - 0.7) / (best - 0.7)) * 100}%` }} /></span>
+                          {r['recall@1'].toFixed(3)}
+                        </td>
+                        <td className="py-3 pr-4 text-right tabular-nums">{r['recall@10'].toFixed(3)}</td>
+                        <td className={`py-3 text-right tabular-nums ${top ? 'font-semibold' : ''}`}>{r['mrr@10'].toFixed(3)}</td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+            <p className="caption mt-3 max-w-3xl"><b>Table 1 | Retrieval of held-out studies.</b> Each of 1,514 titles never seen in training is
+              used as a query against all {fmt(map?.stats.papers)} abstracts; the target is the study it came from. Recall@1 is the share
+              ranked first. The production system is the hybrid.</p>
+          </section>
         )}
-      </section>
-      <Capabilities />
-      <Domains map={map} />
-      <Benchmark retrieval={map?.retrieval} />
-      <HowItWorks />
-      <SearchCTA />
+
+        {map && (
+          <section className="reveal mt-20">
+            <SectionHead n={3} aside={`${fmt(map.stats.papers)} studies · ${fmt(map.stats.journals)} journals`}>Fields in the atlas</SectionHead>
+            <ul className="mt-2 columns-1 gap-10 sm:columns-2 lg:columns-3">
+              {fieldCounts.map(([d, c, color]) => (
+                <li key={d} className="flex break-inside-avoid items-baseline gap-3 border-b border-rule py-2.5">
+                  <span className="h-2.5 w-2.5 translate-y-[1px] rounded-full" style={{ background: color }} />
+                  <Link to={`/search?q=${encodeURIComponent(d)}&domain=${encodeURIComponent(d)}`} className="flex-1 font-serif text-[17px] hover:text-hema">{d}</Link>
+                  <span className="num">{fmt(c)}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        <section className="reveal mt-20 grid gap-10 lg:grid-cols-[1fr_1fr]">
+          <div>
+            <SectionHead n={4}>Methods, briefly</SectionHead>
+            <div className="body mt-5 space-y-4">
+              <p><b className="font-semibold text-ink">Sampling.</b> PubMed was queried for each field and each year separately, by relevance, so that
+                the record is not dominated by recent work and growth can be measured honestly.</p>
+              <p><b className="font-semibold text-ink">Representation.</b> A compact encoder (bge-small) was trained with in-batch contrastive
+                loss to match titles and MeSH-style queries to their abstracts. It is served as an 8-bit model of 34 MB.</p>
+              <p><b className="font-semibold text-ink">Discovery.</b> UMAP reduces the representation; HDBSCAN finds dense regions; class-based
+                TF-IDF names each one from its own vocabulary.</p>
+            </div>
+          </div>
+          <div className="lg:pt-[68px]">
+            <form onSubmit={(e) => { e.preventDefault(); q.trim() && navigate(`/search?q=${encodeURIComponent(q.trim())}`) }}>
+              <label className="font-sans text-[13px] font-semibold" htmlFor="ask">Ask the literature</label>
+              <input id="ask" value={q} onChange={(e) => setQ(e.target.value)} className="field mt-2" placeholder="resistance to checkpoint inhibitors" />
+              <div className="mt-4 flex items-center justify-between">
+                <span className="meta">Searches all {fmt(map?.stats.papers)} abstracts</span>
+                <button className="btn-ink">Search</button>
+              </div>
+            </form>
+          </div>
+        </section>
+      </div>
+      {drawer}
     </main>
   )
 }
